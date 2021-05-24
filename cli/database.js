@@ -1,5 +1,6 @@
 const {
-  readFile
+  readFile,
+  writeFile
 } = require('fs')
 
 const {
@@ -7,6 +8,7 @@ const {
 } = require('util')
 
 const readFileAsync = promisify(readFile)
+const writeFileAsync = promisify(writeFile)
 
 //outra forma de obter dados do json
 // const dadosJson = require('./herois.json')
@@ -21,8 +23,26 @@ class Database {
     return JSON.parse(arquivo.toString())
   }
 
-  escreverArquivo(){
+  async escreverArquivo(dados){
+    await writeFileAsync(this.NOME_ARQUIVO, JSON.stringify(dados))
+    return true
+  }
 
+  async cadastrar(heroi){
+    const dados = await this.obterDadosArquivo()
+    const id = heroi.id <= 2 ? heroi.id : Date.now()
+    const heroiComId = {
+      id,
+      ...heroi
+    }
+
+    const dadosFinal =[
+      ...dados,
+      heroiComId
+    ]
+
+    const resultado = await this.escreverArquivo(dadosFinal)
+    return resultado;
   }
 
   async listar(id){
@@ -30,6 +50,43 @@ class Database {
     const dadosFiltrados = dados.filter(item => (id ? (item.id === id) : true))
     return dadosFiltrados
   }
+
+  async remover(id){
+    if(!id) {
+      return await this.escreverArquivo([])      
+    }
+    
+    const dados = await this.obterDadosArquivo()
+    const indice = dados.findIndex(item => item.id === parseInt(id))
+    if(indice === -1) {
+      throw Error('o heroi informado nao existe')
+    }
+    dados.splice(indice, 1)
+    return await this.escreverArquivo(dados)
+  }
+
+  async atualizar(id, modificacoes){
+      const dados = await this.obterDadosArquivo()
+      const indice = dados.findIndex(item => item.id === parseInt(id))
+      if(indice === -1){
+        throw Error('o heroi informado nao existe')
+      }
+      const atual = dados[indice]
+      const objetoAtualizar = {
+        ...atual,
+        ...modificacoes
+      }
+      dados.splice(indice, 1) /*splice é usado para remover o item da lista */
+
+      return await this.escreverArquivo([
+        ...dados,
+        objetoAtualizar
+      ])
+      
+      return false
+  }
 }
+
+
 
 module.exports = new Database()
